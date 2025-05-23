@@ -1,0 +1,25 @@
+# Parameters
+nc: 3  # number of classes
+
+backbone:
+  # [from, number, module, args]
+  [[-1, 1, DWPWConv, [16, 3, 1]],  # 0
+   [-1, 1, nn.MaxPool2d, [2, 2, 0]],  # 3-P2/4
+   [-1, 1, DWPWConv, [16, 3, 1]],
+   [-1, 1, DWPWConv, [16, 3, 1]],  # 0
+   [-1, 1, nn.MaxPool2d, [2, 2, 0]],  # 3-P2/4
+   [-1, 1, DWPWConv, [32, 3, 1]],
+   [-1, 1, DWPWConv, [32, 3, 1]],  # 0
+   [-1, 1, nn.MaxPool2d, [2, 2, 0]],  # 3-P2/4
+   [-1, 1, DWPWConv, [64, 3, 1]],
+   [-1, 1, DWPWConv, [64, 3, 1]],  # 0
+   [-1, 1, nn.MaxPool2d, [2, 2, 0]],  # 3-P2/4
+   [-1, 1, DWPWConv, [64, 3, 1]],
+   [-1, 1, DWPWConv, [128, 3, 1]],  # 0
+   [-1, 1, nn.MaxPool2d, [2, 2, 0]],  # 3-P2/4
+   [-1, 1, DWPWConv, [128, 3, 1]],
+  ]
+
+head:
+  - [-1, 1, DWPWConv, [24, 1, 1]]
+  - [[-1],1,  Detect, [nc]]

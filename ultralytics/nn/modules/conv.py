@@ -9,6 +9,8 @@ import torch.nn as nn
 
 __all__ = (
     "Conv",
+    "DWPWConv",
+    "ConvToLinear",
     "Conv2",
     "LightConv",
     "DWConv",
@@ -89,6 +91,105 @@ class Conv(nn.Module):
             (torch.Tensor): Output tensor.
         """
         return self.act(self.conv(x))
+
+
+class DWPWConv(nn.Module):
+    """
+    Standard convolution module with batch normalization and activation.
+
+    Attributes:
+        conv (nn.Conv2d): Convolutional layer.
+        bn (nn.BatchNorm2d): Batch normalization layer.
+        act (nn.Module): Activation function layer.
+        default_act (nn.Module): Default activation function (SiLU).
+    """
+
+    default_act = nn.ReLU()  # default activation
+
+    def __init__(self, c1, c2, k=1, s=1, p=None, g=1, d=1, act=True):
+        """
+        Initialize Conv layer with given parameters.
+
+        Args:
+            c1 (int): Number of input channels.
+            c2 (int): Number of output channels.
+            k (int): Kernel size.
+            s (int): Stride.
+            p (int, optional): Padding.
+            g (int): Groups.
+            d (int): Dilation.
+            act (bool | nn.Module): Activation function.
+        """
+        super().__init__()
+
+        self.conv1 = nn.Conv2d(c1, c1, k, s, autopad(k, p, d), groups=c1, bias=False)
+        self.bn1 = nn.BatchNorm2d(c1)
+        self.act1 = nn.ReLU()
+        self.conv2 = ConvToLinear(c1, c2, bias=False)#nn.Conv2d(c1, c2, kernel_size=1, bias=False) # ConvToLinear(c1, c2, )#
+        self.bn2 = nn.BatchNorm2d(c2)
+        self.act2 = nn.ReLU()
+
+    def forward(self, x):
+        """
+        Apply convolution, batch normalization and activation to input tensor.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            (torch.Tensor): Output tensor.
+        """
+        out = self.conv1(x)
+        out = self.bn1(out)
+        out = self.act1(out)
+        out = self.conv2(out)
+        out = self.bn2(out)
+        out = self.act2(out)
+        return out
+
+    def forward_fuse(self, x):
+        """
+        Apply convolution and activation without batch normalization.
+
+        Args:
+            x (torch.Tensor): Input tensor.
+
+        Returns:
+            (torch.Tensor): Output tensor.
+        """
+        out = self.conv1(x)
+        out = self.act1(out)
+        out = self.conv2(out)
+        out = self.act2(out)
+        return out
+
+
+class ConvToLinear(nn.Linear):
+    def __init__(self, c1, c2, bias=True):
+        #super().__init__()
+        #self.linear = nn.Linear(c1, c2, bias=bias)
+        super().__init__(c1, c2, bias=bias)
+
+    def forward(self, x):
+        # x: [B, C1, H, W] → [B, H, W, C1]
+        h, w = x.shape[-2:]
+        x = x.permute(0, 2, 3, 1)
+        # → [B*H*W, C1]
+        x = x.reshape(-1, x.shape[-1])
+        # → [B*H*W, C2]
+        x = super().forward(x)
+        # → [B, H, W, C2]
+        x = x.view(-1, h, w, x.shape[-1])
+        # → [B, C2, H, W]
+        return x.permute(0, 3, 1, 2)
+
+
+    #def __getattr__(self, name):
+    #    if name == 'bias':
+    #        return self.linear.bias
+    #
+    #    return None
+
 
 
 class Conv2(Conv):
@@ -207,6 +308,8 @@ class DWConv(Conv):
             act (bool | nn.Module): Activation function.
         """
         super().__init__(c1, c2, k, s, g=math.gcd(c1, c2), d=d, act=act)
+
+
 
 
 class DWConvTranspose2d(nn.ConvTranspose2d):

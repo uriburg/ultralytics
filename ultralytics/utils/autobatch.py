@@ -92,7 +92,8 @@ def autobatch(model, imgsz=640, fraction=0.60, batch_size=DEFAULT_CFG.batch, max
             i = results.index(None)  # first fail index
             if b >= batch_sizes[i]:  # y intercept above failure point
                 b = batch_sizes[max(i - 1, 0)]  # select prior safe point
-        if b < 1 or b > 1024:  # b outside of safe range
+        # Changed b > 1024 to b > 2048
+        if b < 1 or b > 2048:  # b outside of safe range
             LOGGER.warning(f"{prefix}batch={b} outside safe range, using default batch-size {batch_size}.")
             b = batch_size
 
